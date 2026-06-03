@@ -715,8 +715,13 @@ async function cadastrarPessoa() {
   btn.innerHTML = '<span class="spinner"></span> Processando...';
 
   try {
-    const img = await faceapi.fetchImage(fotoCapturada);
-    const deteccao = await faceapi.detectSingleFace(img)
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = fotoCapturada;
+    });
+    const deteccao = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
       .withFaceLandmarks()
       .withFaceDescriptor();
 
