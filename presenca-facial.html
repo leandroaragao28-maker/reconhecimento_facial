@@ -721,7 +721,8 @@ async function cadastrarPessoa() {
       el.onerror = reject;
       el.src = fotoCapturada;
     });
-    const deteccao = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+    const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 });
+    const deteccao = await faceapi.detectSingleFace(img, opts)
       .withFaceLandmarks()
       .withFaceDescriptor();
 
@@ -767,7 +768,7 @@ async function reconhecer() {
   canvas.width = video.videoWidth || 640;
   canvas.height = video.videoHeight || 480;
 
-  const deteccoes = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+  const deteccoes = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 }))
     .withFaceLandmarks()
     .withFaceDescriptors();
 
@@ -963,6 +964,7 @@ async function init() {
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL),
       faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_URL),
+      faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODELS_URL),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODELS_URL)
     ]);
     modelosCarregados = true;
