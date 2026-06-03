@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SS&B — Lista de Presença Facial</title>
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<style>
+  :root {
+    --verde-escuro: #1B5E20;
+    --verde-medio: #2E7D32;
+    --verde-claro: #4CAF50;
+    --verde-bg: #E8F5E9;
+    --verde-border: #A5D6A7;
+    --texto: #1a1a1a;
+    --texto-sec: #555;
+    --branco: #fff;
+    --cinza-bg: #f5f5f5;
+    --cinza-border: #ddd;
+    --vermelho: #c62828;
+    --azul: #1565C0;
+    --amarelo-bg: #FFF9C4;
+    --amarelo-border: #F9A825;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Calibri', 'Segoe UI', sans-serif;
+    font-size: 15px;
+    background: var(--cinza-bg);
+    color: var(--texto);
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--verde-escuro);
+    color: white;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+
+  header .logo {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    border: 2px solid rgba(255,255,255,0.5);
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+
+  header h1 {
+    font-size: 17px;
+    font-weight: 400;
+    opacity: 0.92;
+  }
+
+  .status-bar {
+    background: var(--amarelo-bg);
+    border-bottom: 1px solid var(--amarelo-border);
+    padding: 10px 24px;
+    font-size: 13px;
+    color: #5D4037;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-bar.ok {
+    background: var(--verde-bg);
+    border-color: var(--verde-border);
+    color: var(--verde-escuro);
+  }
+
+  .status-bar.erro {
+    background: #FFEBEE;
+    border-color: #EF9A9A;
+    color: var(--vermelho);
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 20px 16px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: white;
+    border: 1px solid var(--cinza-border);
+    border-radius: 8px;
+    padding: 4px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--texto-sec);
+    transition: all 0.2s;
+  }
+
+  .tab.ativo {
+    background: var(--verde-escuro);
+    color: white;
+  }
+
+  .painel { display: none; }
+  .painel.ativo { display: block; }
+
+  .card {
+    background: white;
+    border: 1px solid var(--cinza-border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .card h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--verde-bg);
+  }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  @media(max-width: 680px) { .grid2 { grid-template-columns: 1fr; } }
+
+  .video-wrap {
+    position: relative;
+    background: #111;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 4/3;
+  }
+
+  video, canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+
+  canvas { pointer-events: none; }
+
+  .video-label {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    color: white;
+    font-size: 12px;
+    padding: 20px 10px 8px;
+    text-align: center;
+    z-index: 10;
+  }
+
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--texto-sec);
+    margin-bottom: 4px;
+    margin-top: 12px;
+  }
+
+  input[type=text], input[type=password], input[type=url] {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--cinza-border);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--texto);
+    transition: border 0.2s;
+  }
+
+  input:focus { outline: none; border-color: var(--verde-claro); }
+
+  button {
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+
+  .btn-primario {
+    background: var(--verde-escuro);
+    color: white;
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  .btn-primario:hover { background: var(--verde-medio); }
+  .btn-primario:disabled { background: #ccc; cursor: not-allowed; }
+
+  .btn-secundario {
+    background: white;
+    color: var(--verde-escuro);
+    border: 1px solid var(--verde-border);
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .btn-secundario:hover { background: var(--verde-bg); }
+
+  .btn-perigo {
+    background: #FFEBEE;
+    color: var(--vermelho);
+    border: 1px solid #EF9A9A;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .btn-perigo:hover { background: #FFCDD2; }
+
+  .lista-pessoas {
+    max-height: 280px;
+    overflow-y: auto;
+    border: 1px solid var(--cinza-border);
+    border-radius: 6px;
+  }
+
+  .pessoa-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--cinza-border);
+    font-size: 13px;
+  }
+
+  .pessoa-item:last-child { border-bottom: none; }
+
+  .pessoa-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--verde-bg);
+    border: 2px solid var(--verde-border);
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    font-size: 13px;
+  }
+
+  .pessoa-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+  .pessoa-info { flex: 1; }
+  .pessoa-nome { font-weight: 600; }
+  .pessoa-detalhe { font-size: 11px; color: var(--texto-sec); }
+
+  .badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  .badge-verde { background: var(--verde-bg); color: var(--verde-escuro); }
+  .badge-cinza { background: var(--cinza-bg); color: var(--texto-sec); }
+
+  .log-presenca {
+    max-height: 340px;
+    overflow-y: auto;
+  }
+
+  .log-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--cinza-bg);
+    font-size: 13px;
+  }
+
+  .log-item:first-child { padding-top: 0; }
+
+  .log-hora {
+    font-size: 11px;
+    color: var(--texto-sec);
+    min-width: 50px;
+    text-align: right;
+  }
+
+  .log-nome { font-weight: 600; flex: 1; }
+
+  .feedback-overlay {
+    position: fixed;
+    top: 80px; right: 24px;
+    background: var(--verde-escuro);
+    color: white;
+    padding: 14px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    z-index: 999;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s;
+    pointer-events: none;
+    max-width: 280px;
+  }
+
+  .feedback-overlay.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .feedback-overlay.erro-fb { background: var(--vermelho); }
+
+  .secao-config label:first-child { margin-top: 0; }
+
+  .hint {
+    font-size: 11px;
+    color: var(--texto-sec);
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+
+  .info-box {
+    background: var(--verde-bg);
+    border: 1px solid var(--verde-border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--verde-escuro);
+    margin-bottom: 14px;
+    line-height: 1.6;
+  }
+
+  .separador { height: 1px; background: var(--cinza-border); margin: 16px 0; }
+
+  #captura-preview {
+    width: 100%;
+    border-radius: 6px;
+    display: none;
+    margin-top: 10px;
+  }
+
+  .contador-badge {
+    background: var(--verde-escuro);
+    color: white;
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 12px;
+    margin-left: 8px;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state {
+    text-align: center;
+    color: var(--texto-sec);
+    padding: 30px;
+    font-size: 13px;
+  }
+
+  .stat-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    flex: 1;
+    background: var(--cinza-bg);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--verde-escuro);
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--texto-sec);
+    margin-top: 2px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SS&B</div>
+  <h1>Sistema de Presença — Reconhecimento Facial</h1>
+</header>
+
+<div id="statusBar" class="status-bar">
+  <div class="dot"></div>
+  <span id="statusMsg">Carregando modelos de IA facial... aguarde.</span>
+</div>
+
+<div class="container">
+
+  <div class="tabs">
+    <button class="tab ativo" onclick="trocarTab('reconhecimento')">📷 Reconhecimento</button>
+    <button class="tab" onclick="trocarTab('cadastro')">👤 Cadastrar Pessoa</button>
+    <button class="tab" onclick="trocarTab('registros')">📋 Registros</button>
+    <button class="tab" onclick="trocarTab('config')">⚙️ Configuração</button>
+  </div>
+
+  <!-- ABA RECONHECIMENTO -->
+  <div id="painel-reconhecimento" class="painel ativo">
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-num" id="stat-cadastrados">0</div>
+        <div class="stat-label">Pessoas cadastradas</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-presentes">0</div>
+        <div class="stat-label">Presenças hoje</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-taxa">—</div>
+        <div class="stat-label">Taxa de presença</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>📷 Câmera</h2>
+        <div class="video-wrap">
+          <video id="video" autoplay muted playsinline></video>
+          <canvas id="overlay"></canvas>
+          <div class="video-label" id="videoLabel">Câmera iniciando...</div>
+        </div>
+        <button class="btn-primario" id="btnReconhecer" onclick="reconhecer()" disabled>
+          🔍 Reconhecer Rosto
+        </button>
+        <button class="btn-secundario" onclick="reconhecimentoContinuo()">
+          ▶ Reconhecimento Automático
+        </button>
+      </div>
+
+      <div class="card">
+        <h2>📋 Log de Presenças <span class="contador-badge" id="contadorLog">0</span></h2>
+        <div class="log-presenca" id="logPresenca">
+          <div class="empty-state">Nenhuma presença registrada ainda.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABA CADASTRO -->
+  <div id="painel-cadastro" class="painel">
+    <div class="grid2">
+      <div class="card">
+        <h2>📸 Capturar Foto</h2>
+        <div class="video-wrap">
+          <video id="videoCadastro" autoplay muted playsinline></video>
+          <canvas id="overlayCadastro"></canvas>
+          <div class="video-label">Posicione o rosto centralizado</div>
+        </div>
+        <button class="btn-primario" onclick="capturarFoto()">📸 Tirar Foto</button>
+        <img id="captura-preview" alt="Preview da captura">
+      </div>
+
+      <div class="card">
+        <h2>👤 Dados da Pessoa</h2>
+        <label>Nome completo *</label>
+        <input type="text" id="nomePessoa" placeholder="Ex: João da Silva">
+
+        <label>Cargo / Função</label>
+        <input type="text" id="cargoPessoa" placeholder="Ex: Engenheiro Civil">
+
+        <label>Matrícula</label>
+        <input type="text" id="matriculaPessoa" placeholder="Ex: 001234">
+
+        <button class="btn-primario" id="btnCadastrar" onclick="cadastrarPessoa()" disabled>
+          ✅ Salvar Cadastro
+        </button>
+
+        <div class="separador"></div>
+        <h2 style="margin-bottom:10px">👥 Pessoas Cadastradas <span class="contador-badge" id="contadorPessoas">0</span></h2>
+        <div class="lista-pessoas" id="listaPessoas">
+          <div class="empty-state">Nenhuma pessoa cadastrada.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABA REGISTROS -->
+  <div id="painel-registros" class="painel">
+    <div class="card">
+      <h2>📋 Histórico de Presenças</h2>
+      <div id="tabelaRegistros">
+        <div class="empty-state">Nenhum registro nesta sessão.</div>
+      </div>
+      <button class="btn-secundario" style="margin-top:14px" onclick="exportarCSV()">
+        📥 Exportar CSV
+      </button>
+    </div>
+  </div>
+
+  <!-- ABA CONFIG -->
+  <div id="painel-config" class="painel">
+    <div class="card secao-config">
+      <h2>🔗 Google Sheets</h2>
+      <div class="info-box">
+        Para registrar presenças automaticamente em uma planilha Google Sheets, configure abaixo. Veja o passo a passo completo no guia de implementação.
+      </div>
+
+      <label>ID da Planilha Google Sheets</label>
+      <input type="text" id="sheetId" placeholder="Ex: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms">
+      <p class="hint">O ID está na URL da planilha: docs.google.com/spreadsheets/d/<strong>[ID AQUI]</strong>/edit</p>
+
+      <label>Nome da Aba (Sheet)</label>
+      <input type="text" id="sheetName" placeholder="Presenças" value="Presenças">
+
+      <label>Google Apps Script URL (Web App)</label>
+      <input type="url" id="scriptUrl" placeholder="https://script.google.com/macros/s/.../exec">
+      <p class="hint">Cole aqui a URL gerada ao publicar o Apps Script como Web App.</p>
+
+      <label>Tolerância de reconhecimento (0.4–0.7)</label>
+      <input type="text" id="tolerancia" value="0.5" placeholder="0.5">
+      <p class="hint">Menor = mais exigente. Recomendado: 0.5. Aumente se houver falsos negativos.</p>
+
+      <button class="btn-primario" onclick="salvarConfig()">💾 Salvar Configurações</button>
+      <button class="btn-secundario" onclick="testarConexao()">🔌 Testar Conexão com Sheets</button>
+    </div>
+
+    <div class="card">
+      <h2>⚠️ Dados Locais</h2>
+      <p style="font-size:13px;color:var(--texto-sec);margin-bottom:12px">Os embeddings faciais são armazenados localmente no navegador (localStorage). Nenhuma foto é enviada para a internet.</p>
+      <button class="btn-perigo" onclick="limparDados()">🗑️ Apagar todos os cadastros</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="feedback" class="feedback-overlay"></div>
+
+<script>
+const MODELS_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
+let modelosCarregados = false;
+let streamAtivo = null;
+let modoAutomatico = false;
+let intervalAuto = null;
+let fotoCapturada = null;
+let registros = [];
+
+const config = {
+  sheetId: '',
+  sheetName: 'Presenças',
+  scriptUrl: '',
+  tolerancia: 0.5
+};
+
+function salvarConfig() {
+  config.sheetId   = document.getElementById('sheetId').value.trim();
+  config.sheetName = document.getElementById('sheetName').value.trim() || 'Presenças';
+  config.scriptUrl = document.getElementById('scriptUrl').value.trim();
+  config.tolerancia = parseFloat(document.getElementById('tolerancia').value) || 0.5;
+  localStorage.setItem('ssb_config', JSON.stringify(config));
+  mostrarFeedback('✅ Configurações salvas!', false);
+}
+
+function carregarConfig() {
+  const s = localStorage.getItem('ssb_config');
+  if (s) {
+    Object.assign(config, JSON.parse(s));
+    document.getElementById('sheetId').value   = config.sheetId || '';
+    document.getElementById('sheetName').value = config.sheetName || 'Presenças';
+    document.getElementById('scriptUrl').value  = config.scriptUrl || '';
+    document.getElementById('tolerancia').value = config.tolerancia || 0.5;
+  }
+}
+
+async function testarConexao() {
+  if (!config.scriptUrl) { mostrarFeedback('⚠️ Configure a URL do Apps Script primeiro.', true); return; }
+  mostrarFeedback('🔄 Testando conexão...', false);
+  try {
+    const r = await fetch(config.scriptUrl + '?action=ping');
+    const t = await r.text();
+    mostrarFeedback(t.includes('ok') ? '✅ Conexão com Google Sheets OK!' : '⚠️ Resposta inesperada do servidor.', false);
+  } catch(e) {
+    mostrarFeedback('❌ Erro de conexão. Verifique a URL do Apps Script.', true);
+  }
+}
+
+// ─── Pessoas ───────────────────────────────────────────────
+function getPessoas() {
+  const d = localStorage.getItem('ssb_pessoas');
+  return d ? JSON.parse(d) : [];
+}
+
+function salvarPessoas(pessoas) {
+  localStorage.setItem('ssb_pessoas', JSON.stringify(pessoas));
+  atualizarListaPessoas();
+  atualizarStats();
+}
+
+function atualizarListaPessoas() {
+  const pessoas = getPessoas();
+  const lista = document.getElementById('listaPessoas');
+  document.getElementById('contadorPessoas').textContent = pessoas.length;
+  document.getElementById('stat-cadastrados').textContent = pessoas.length;
+  if (!pessoas.length) { lista.innerHTML = '<div class="empty-state">Nenhuma pessoa cadastrada.</div>'; return; }
+  lista.innerHTML = pessoas.map((p, i) => `
+    <div class="pessoa-item">
+      <div class="pessoa-avatar">
+        ${p.foto ? `<img src="${p.foto}" alt="${p.nome}">` : iniciais(p.nome)}
+      </div>
+      <div class="pessoa-info">
+        <div class="pessoa-nome">${p.nome}</div>
+        <div class="pessoa-detalhe">${p.cargo || 'Sem cargo'} ${p.matricula ? '· Mat. ' + p.matricula : ''}</div>
+      </div>
+      <span class="badge badge-verde">${p.embedding ? 'Treinado' : 'Sem rosto'}</span>
+      <button class="btn-perigo" onclick="removerPessoa(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function iniciais(nome) {
+  return nome.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase();
+}
+
+function removerPessoa(i) {
+  const pessoas = getPessoas();
+  if (!confirm(`Remover ${pessoas[i].nome}?`)) return;
+  pessoas.splice(i,1);
+  salvarPessoas(pessoas);
+}
+
+function limparDados() {
+  if (!confirm('Apagar TODOS os cadastros? Esta ação não pode ser desfeita.')) return;
+  localStorage.removeItem('ssb_pessoas');
+  atualizarListaPessoas();
+  atualizarStats();
+  mostrarFeedback('🗑️ Dados apagados.', false);
+}
+
+// ─── Câmera ────────────────────────────────────────────────
+async function iniciarCamera(videoId) {
+  const video = document.getElementById(videoId);
+  if (streamAtivo && video.srcObject === streamAtivo) return;
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user', width:640, height:480 } });
+    video.srcObject = s;
+    if (!streamAtivo) streamAtivo = s;
+    document.getElementById('videoLabel') && (document.getElementById('videoLabel').textContent = 'Câmera ativa');
+  } catch(e) {
+    atualizarStatus('Erro ao acessar câmera: ' + e.message, 'erro');
+  }
+}
+
+// ─── Captura de foto para cadastro ────────────────────────
+function capturarFoto() {
+  const video = document.getElementById('videoCadastro');
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth || 320;
+  canvas.height = video.videoHeight || 240;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  fotoCapturada = canvas.toDataURL('image/jpeg', 0.85);
+  const prev = document.getElementById('captura-preview');
+  prev.src = fotoCapturada;
+  prev.style.display = 'block';
+  document.getElementById('btnCadastrar').disabled = false;
+  mostrarFeedback('📸 Foto capturada! Preencha os dados e salve.', false);
+}
+
+async function cadastrarPessoa() {
+  if (!modelosCarregados) { mostrarFeedback('⏳ Modelos ainda carregando...', true); return; }
+  const nome = document.getElementById('nomePessoa').value.trim();
+  if (!nome) { mostrarFeedback('⚠️ Informe o nome da pessoa.', true); return; }
+  if (!fotoCapturada) { mostrarFeedback('⚠️ Capture uma foto primeiro.', true); return; }
+
+  const btn = document.getElementById('btnCadastrar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Processando...';
+
+  try {
+    const img = await faceapi.fetchImage(fotoCapturada);
+    const deteccao = await faceapi.detectSingleFace(img)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (!deteccao) {
+      mostrarFeedback('❌ Nenhum rosto detectado na foto. Tente novamente.', true);
+      btn.disabled = false; btn.innerHTML = '✅ Salvar Cadastro'; return;
+    }
+
+    const pessoas = getPessoas();
+    pessoas.push({
+      nome,
+      cargo: document.getElementById('cargoPessoa').value.trim(),
+      matricula: document.getElementById('matriculaPessoa').value.trim(),
+      foto: fotoCapturada,
+      embedding: Array.from(deteccao.descriptor),
+      cadastradoEm: new Date().toISOString()
+    });
+    salvarPessoas(pessoas);
+
+    document.getElementById('nomePessoa').value = '';
+    document.getElementById('cargoPessoa').value = '';
+    document.getElementById('matriculaPessoa').value = '';
+    document.getElementById('captura-preview').style.display = 'none';
+    fotoCapturada = null;
+    btn.disabled = true;
+    btn.innerHTML = '✅ Salvar Cadastro';
+    mostrarFeedback(`✅ ${nome} cadastrado com sucesso!`, false);
+  } catch(e) {
+    mostrarFeedback('❌ Erro ao processar rosto: ' + e.message, true);
+    btn.disabled = false; btn.innerHTML = '✅ Salvar Cadastro';
+  }
+}
+
+// ─── Reconhecimento ────────────────────────────────────────
+async function reconhecer() {
+  if (!modelosCarregados) { mostrarFeedback('⏳ Modelos ainda carregando...', true); return; }
+  const pessoas = getPessoas().filter(p => p.embedding);
+  if (!pessoas.length) { mostrarFeedback('⚠️ Cadastre pelo menos uma pessoa antes.', true); return; }
+
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('overlay');
+  const ctx = canvas.getContext('2d');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+
+  const deteccoes = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+    .withFaceLandmarks()
+    .withFaceDescriptors();
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if (!deteccoes.length) {
+    mostrarFeedback('😶 Nenhum rosto detectado. Aproxime-se da câmera.', true); return;
+  }
+
+  const labeledDescriptors = pessoas.map(p =>
+    new faceapi.LabeledFaceDescriptors(p.nome, [new Float32Array(p.embedding)])
+  );
+  const matcher = new faceapi.FaceMatcher(labeledDescriptors, config.tolerancia);
+  const dims = { width: canvas.width, height: canvas.height };
+  const resized = faceapi.resizeResults(deteccoes, dims);
+
+  for (const d of resized) {
+    const match = matcher.findBestMatch(d.descriptor);
+    const nome = match.label === 'unknown' ? '? Desconhecido' : match.label;
+    const cor = match.label === 'unknown' ? '#E53935' : '#2E7D32';
+    const box = d.detection.box;
+
+    ctx.strokeStyle = cor;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(box.x, box.y, box.width, box.height);
+    ctx.fillStyle = cor;
+    ctx.fillRect(box.x, box.y - 28, Math.max(box.width, nome.length * 8 + 20), 28);
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 14px Calibri, sans-serif';
+    ctx.fillText(nome, box.x + 8, box.y - 8);
+
+    if (match.label !== 'unknown') {
+      const pessoa = pessoas.find(p => p.nome === match.label);
+      registrarPresenca(pessoa || { nome: match.label });
+    }
+  }
+
+  setTimeout(() => ctx.clearRect(0,0,canvas.width,canvas.height), 4000);
+}
+
+const presencasHoje = new Set();
+
+async function registrarPresenca(pessoa) {
+  const hoje = new Date().toDateString();
+  const chave = pessoa.nome + '|' + hoje;
+  if (presencasHoje.has(chave)) return;
+  presencasHoje.add(chave);
+
+  const agora = new Date();
+  const hora = agora.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  const data = agora.toLocaleDateString('pt-BR');
+
+  const registro = { nome: pessoa.nome, cargo: pessoa.cargo || '', matricula: pessoa.matricula || '', data, hora };
+  registros.push(registro);
+  atualizarLog(registro);
+  atualizarStats();
+  mostrarFeedback(`✅ ${pessoa.nome} — Presença registrada!`, false);
+
+  if (config.scriptUrl) {
+    enviarParaSheets(registro);
+  }
+}
+
+async function enviarParaSheets(registro) {
+  try {
+    const params = new URLSearchParams({
+      action: 'registrar',
+      nome: registro.nome,
+      cargo: registro.cargo,
+      matricula: registro.matricula,
+      data: registro.data,
+      hora: registro.hora,
+      sheet: config.sheetName
+    });
+    await fetch(config.scriptUrl + '?' + params.toString());
+  } catch(e) {
+    console.warn('Erro ao enviar para Sheets:', e);
+  }
+}
+
+function reconhecimentoContinuo() {
+  if (modoAutomatico) {
+    clearInterval(intervalAuto);
+    modoAutomatico = false;
+    document.querySelectorAll('.tab + .tab + .card .btn-secundario')[0] && null;
+    mostrarFeedback('⏹ Modo automático desativado.', false);
+    return;
+  }
+  modoAutomatico = true;
+  mostrarFeedback('▶ Modo automático ativado (a cada 5s).', false);
+  reconhecer();
+  intervalAuto = setInterval(reconhecer, 5000);
+}
+
+function atualizarLog(registro) {
+  const log = document.getElementById('logPresenca');
+  if (log.querySelector('.empty-state')) log.innerHTML = '';
+  const item = document.createElement('div');
+  item.className = 'log-item';
+  item.innerHTML = `
+    <div class="pessoa-avatar" style="width:30px;height:30px;font-size:11px">${iniciais(registro.nome)}</div>
+    <div class="log-nome">${registro.nome}<br><span style="font-weight:400;color:var(--texto-sec);font-size:11px">${registro.cargo}</span></div>
+    <div class="log-hora">${registro.hora}</div>
+    <span class="badge badge-verde">✓</span>
+  `;
+  log.prepend(item);
+  document.getElementById('contadorLog').textContent = registros.length;
+  atualizarTabelaRegistros();
+}
+
+function atualizarTabelaRegistros() {
+  const div = document.getElementById('tabelaRegistros');
+  if (!registros.length) { div.innerHTML = '<div class="empty-state">Nenhum registro nesta sessão.</div>'; return; }
+  div.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--verde-escuro);color:white">
+      <th style="padding:8px 12px;text-align:left">Nome</th>
+      <th style="padding:8px 12px;text-align:left">Cargo</th>
+      <th style="padding:8px 12px;text-align:left">Matrícula</th>
+      <th style="padding:8px 12px;text-align:left">Data</th>
+      <th style="padding:8px 12px;text-align:left">Hora</th>
+    </tr></thead>
+    <tbody>
+      ${registros.map((r,i) => `<tr style="background:${i%2?'var(--cinza-bg)':'white'}">
+        <td style="padding:7px 12px">${r.nome}</td>
+        <td style="padding:7px 12px">${r.cargo}</td>
+        <td style="padding:7px 12px">${r.matricula}</td>
+        <td style="padding:7px 12px">${r.data}</td>
+        <td style="padding:7px 12px">${r.hora}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function exportarCSV() {
+  if (!registros.length) { mostrarFeedback('⚠️ Nenhum registro para exportar.', true); return; }
+  const csv = ['Nome,Cargo,Matrícula,Data,Hora', ...registros.map(r =>
+    [r.nome, r.cargo, r.matricula, r.data, r.hora].map(v => `"${v}"`).join(',')
+  )].join('\n');
+  const blob = new Blob(['\ufeff' + csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = `presenca_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function atualizarStats() {
+  const cadastrados = getPessoas().length;
+  const presentes = presencasHoje.size;
+  document.getElementById('stat-presentes').textContent = presentes;
+  document.getElementById('stat-taxa').textContent = cadastrados
+    ? Math.round(presentes / cadastrados * 100) + '%' : '—';
+}
+
+// ─── Tabs ──────────────────────────────────────────────────
+function trocarTab(nome) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const tabs = ['reconhecimento','cadastro','registros','config'];
+    t.classList.toggle('ativo', tabs[i] === nome);
+  });
+  document.querySelectorAll('.painel').forEach(p => p.classList.remove('ativo'));
+  document.getElementById('painel-' + nome).classList.add('ativo');
+
+  if (nome === 'reconhecimento') iniciarCamera('video');
+  if (nome === 'cadastro') iniciarCamera('videoCadastro');
+}
+
+// ─── Feedback ──────────────────────────────────────────────
+let fbTimer;
+function mostrarFeedback(msg, erro = false) {
+  const el = document.getElementById('feedback');
+  el.textContent = msg;
+  el.className = 'feedback-overlay show' + (erro ? ' erro-fb' : '');
+  clearTimeout(fbTimer);
+  fbTimer = setTimeout(() => el.className = 'feedback-overlay', 3200);
+}
+
+function atualizarStatus(msg, tipo) {
+  const bar = document.getElementById('statusBar');
+  const span = document.getElementById('statusMsg');
+  span.textContent = msg;
+  bar.className = 'status-bar ' + (tipo || '');
+}
+
+// ─── Init ──────────────────────────────────────────────────
+async function init() {
+  carregarConfig();
+  atualizarListaPessoas();
+  atualizarStats();
+
+  atualizarStatus('Carregando modelos de IA facial...', '');
+
+  try {
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODELS_URL)
+    ]);
+    modelosCarregados = true;
+    atualizarStatus('✅ Modelos carregados — sistema pronto!', 'ok');
+    document.getElementById('btnReconhecer').disabled = false;
+    iniciarCamera('video');
+  } catch(e) {
+    atualizarStatus('❌ Erro ao carregar modelos: ' + e.message + '. Verifique sua conexão.', 'erro');
+  }
+}
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
